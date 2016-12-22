@@ -1,4 +1,4 @@
-"SELECT 
+SELECT 
 
 od.`packet_id`, 
 od.`price`, 
@@ -256,4 +256,4 @@ o.`status` IN (1,5)
 -- AND
 -- t.`date` BETWEEN '2016-05-01 00:00:00' AND '2016-10-01 00:00:00'
 AND od.`packet_id` IN  (353,354,355,356)
-GROUP BY od.`packet_id`"
+GROUP BY od.`packet_id`

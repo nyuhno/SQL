@@ -1,0 +1,1 @@
+SELECT id, verified_phone, verified_register, verified_email FROM USER WHERE id=(SELECT MAX(id) FROM USER);

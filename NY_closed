@@ -1,0 +1,6 @@
+"SELECT *
+FROM `transaction` `t`
+LEFT JOIN `billing` `b` ON SUBSTR(t.coment, 50) = `b`.`id`
+LEFT JOIN `orders` `o` ON `b`.`order_id` = `o`.`id`
+LEFT JOIN `orders_detail` `od` ON `od`.`orders_id` = `o`.`id`
+WHERE `t`.`coment` LIKE '%услов%' AND `od`.`packet_id` IN (353,354,355,356)"

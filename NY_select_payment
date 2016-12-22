@@ -1,0 +1,257 @@
+"SELECT 
+
+od.`packet_id`, 
+od.`price`, 
+IFNULL(N.s, 0)  AS Всего, 
+IFNULL(N5.s, 0)  AS Кол_отм, 
+IFNULL(ND.s, 0)  AS Кол_действ, 
+IFNULL(Nopl.s, 0)  AS Оплаченных,
+IFNULL(A.s, 0)+IFNULL(B.s, 0)+IFNULL(PS.s, 0) AS Всего_оплачено,
+IFNULL(A.s, 0) AS Осн, 
+IFNULL(B.s, 0) AS Бонусный,
+IFNULL(PS.s, 0) AS ПС, 
+
+IFNULL(C.s, 0) AS Акционный_отм
+
+-- IFNULL(AO.s, 0) AS А_отм,
+
+ -- IFNULL(BO.s, 0) AS В_отм
+-- IFNULL(PSO.s, 0) AS ПС_отм
+
+
+FROM `orders_detail` od
+LEFT JOIN `orders` o ON od.orders_id = o.id
+ -- LEFT JOIN `orders_detail` od ON od.`orders_id` = o.`id`
+ LEFT JOIN `billing` b ON b.`order_id` = o.id
+ LEFT JOIN `transaction` t ON t.billing_id = b.id
+
+
+
+-- продано всего
+LEFT JOIN (
+SELECT
+  `orders_detail`.`packet_id`, `orders_detail`.`quantity`,
+  SUM(`orders_detail`.`quantity`) AS s
+FROM `orders`
+LEFT JOIN `orders_detail` ON orders_detail.orders_id = orders.id
+WHERE   `orders`.`status` IN (1,3,5,6) 
+-- AND `orders`.`date` BETWEEN '2016-05-01 00:00:00' AND '2016-10-01 00:00:00'
+AND `orders_detail`.`packet_id` IN (353,354,355,356)
+GROUP BY `orders_detail`.`packet_id`) N ON N.`packet_id` = od.`packet_id`
+
+-- отмененные
+LEFT JOIN (
+SELECT
+  `orders_detail`.`packet_id`, `orders_detail`.`quantity`,
+  SUM(`orders_detail`.`quantity`) AS s
+FROM `orders`
+LEFT JOIN `orders_detail` ON orders_detail.orders_id = orders.id
+WHERE   `orders`.`status` IN (5) 
+-- AND `orders`.`date` BETWEEN '2016-05-01 00:00:00' AND '2016-10-01 00:00:00'
+AND `orders_detail`.`packet_id` IN (353,354,355,356)
+GROUP BY `orders_detail`.`packet_id`) N5 ON N5.`packet_id` = od.`packet_id`
+-- кол действующих
+LEFT JOIN (
+SELECT
+  `orders_detail`.`packet_id`, `orders_detail`.`quantity`,
+  SUM(`orders_detail`.`quantity`) AS s
+FROM `orders`
+LEFT JOIN `orders_detail` ON orders_detail.orders_id = orders.id
+WHERE   `orders`.`status` IN (1) 
+-- AND `orders`.`date` BETWEEN '2016-05-01 00:00:00' AND '2016-10-01 00:00:00'
+AND `orders_detail`.`packet_id` IN (353,354,355,356)
+GROUP BY `orders_detail`.`packet_id`) ND ON ND.`packet_id` = od.`packet_id`
+
+
+-- оплаченные рассрочки
+LEFT JOIN (
+SELECT
+  `orders_detail`.`packet_id`, `orders_detail`.`quantity`,
+  SUM(`orders_detail`.`quantity`) AS s
+FROM `orders`
+LEFT JOIN `orders_detail` ON orders_detail.orders_id = orders.id
+WHERE   `orders`.`status` IN (3,6) 
+-- AND `orders`.`date` BETWEEN '2016-05-01 00:00:00' AND '2016-10-01 00:00:00'
+AND `orders_detail`.`packet_id` IN (353,354,355,356)
+GROUP BY `orders_detail`.`packet_id`) Nopl ON Nopl.`packet_id` = od.`packet_id`
+
+
+
+
+
+
+-- куплено с А
+LEFT JOIN (
+SELECT o1.id, od1.`packet_id`,  
+od1.price,  od1.quantity, o1.price_in_price_list,  t1.sum, 
+SUM((od1.price * od1.quantity/o1.price_in_price_list) * t1.sum ) AS s
+FROM `orders` o1
+LEFT JOIN `orders_detail` od1 ON od1.`orders_id` = o1.`id`
+LEFT JOIN `billing` b1 ON b1.`order_id` = o1.id
+LEFT JOIN `transaction` t1 ON t1.billing_id = b1.id
+LEFT JOIN `accounts` a1 ON a1.id = t1.account_id
+ WHERE 
+ -- o1.`date` BETWEEN '2016-07-01 00:00:00' AND '2016-08-01 00:00:00' AND
+ -- t1.`date` BETWEEN '2016-05-01 00:00:00' AND '2016-10-01 00:00:00'
+-- AND 
+t1.`operation` = 'OUT'
+AND o1.`status` IN (1,3,5,6) 
+AND  a1.type != ('D')
+AND a1.type IN ('A')
+AND t1.`operation` != 'RETURN'
+AND o1.`instalment` IN (1)
+AND od1.`packet_id` IN (353,354,355,356)
+GROUP BY od1.`packet_id`
+) A ON A.`packet_id` = od.`packet_id`
+
+
+-- LEFT JOIN (
+-- SELECT o1.id, od1.`packet_id`,  
+-- od1.price,  od1.quantity, o1.price_in_price_list,  t1.sum, 
+-- SUM((od1.price * od1.quantity/o1.price_in_price_list) * t1.sum ) AS s
+-- FROM `orders` o1
+-- LEFT JOIN `orders_detail` od1 ON od1.`orders_id` = o1.`id`
+-- LEFT JOIN `billing` b1 ON b1.`order_id` = o1.id
+-- LEFT JOIN `transaction` t1 ON t1.billing_id = b1.id
+-- LEFT JOIN `accounts` a1 ON a1.id = t1.account_id
+--  WHERE 
+--  -- o1.`date` BETWEEN '2016-07-01 00:00:00' AND '2016-08-01 00:00:00' AND
+--  t1.`date` BETWEEN '2016-05-01 00:00:00' AND '2016-10-01 00:00:00'
+-- AND t1.`operation` = 'OUT'
+-- AND o1.`status` IN (1,3,5) 
+-- AND  a1.type != ('D')
+-- AND a1.type IN ('A')
+-- AND t1.`operation` != 'RETURN'
+-- AND o1.`instalment` IN (5)
+-- AND od1.`packet_id` IN (298, 299)
+-- GROUP BY od1.`packet_id`
+-- ) AO ON AO.`packet_id` = od.`packet_id`
+
+-- купленно с бонусного 
+LEFT JOIN (
+SELECT o2.id, od2.`packet_id`,  
+od2.price,  od2.quantity, o2.price_in_price_list,  t2.sum, 
+SUM((od2.price * od2.quantity/o2.price_in_price_list) * t2.sum ) AS s
+FROM `orders` o2
+LEFT JOIN `orders_detail` od2 ON od2.`orders_id` = o2.`id`
+LEFT JOIN `billing` b2 ON b2.`order_id` = o2.id
+LEFT JOIN `transaction` t2 ON t2.billing_id = b2.id
+LEFT JOIN `accounts` a2 ON a2.id = t2.account_id
+WHERE 
+ -- o2.`date` BETWEEN '2016-06-01 00:00:00' AND '2016-07-01 00:00:00' AND
+ -- t2.`date` BETWEEN '2016-05-01 00:00:00' AND '2016-10-01 00:00:00'
+-- AND 
+t2.`operation` = 'OUT'
+AND o2.`status` IN (1,3,5,6) 
+AND  a2.type != ('D')
+AND a2.type IN ('B')
+AND t2.`operation` != 'RETURN'
+AND od2.`packet_id` IN (353,354,355,356)
+GROUP BY od2.`packet_id`
+) B ON B.`packet_id` = od.`packet_id`
+
+-- LEFT JOIN (
+-- SELECT o2.id, od2.`packet_id`,  
+-- od2.price,  od2.quantity, o2.price_in_price_list,  t2.sum, 
+-- SUM((od2.price * od2.quantity/o2.price_in_price_list) * t2.sum ) AS s
+-- FROM `orders` o2
+-- LEFT JOIN `orders_detail` od2 ON od2.`orders_id` = o2.`id`
+-- LEFT JOIN `billing` b2 ON b2.`order_id` = o2.id
+-- LEFT JOIN `transaction` t2 ON t2.billing_id = b2.id
+-- LEFT JOIN `accounts` a2 ON a2.id = t2.account_id
+-- WHERE 
+--  -- o2.`date` BETWEEN '2016-06-01 00:00:00' AND '2016-07-01 00:00:00' AND
+--  t2.`date` BETWEEN '2016-05-01 00:00:00' AND '2016-10-01 00:00:00'
+-- AND t2.`operation` = 'OUT'
+-- AND o2.`status` IN (5) 
+-- AND  a2.type != ('D')
+-- AND a2.type IN ('B')
+-- AND t2.`operation` != 'RETURN'
+-- AND od2.`packet_id` IN (298, 299)
+-- GROUP BY od2.`packet_id`
+-- ) BO ON BO.`packet_id` = od.`packet_id`
+
+
+
+
+
+
+
+
+-- покупка с ПС
+LEFT JOIN (
+SELECT    o3.id, od3.`packet_id`,  
+od3.price,  od3.quantity, o3.price_in_price_list,  t3.sum, 
+SUM(((od3.price * od3.quantity/o3.price_in_price_list) * t3.sum )) AS s
+FROM `orders` o3
+LEFT JOIN `orders_detail` od3 ON od3.`orders_id` = o3.`id`
+LEFT JOIN `billing` b3 ON b3.`order_id` = o3.id
+LEFT JOIN `transaction` t3 ON t3.billing_id = b3.id
+LEFT JOIN `accounts` a3 ON a3.id = t3.account_id
+ WHERE 
+ -- t3.`date` BETWEEN '2016-05-01 00:00:00' AND '2016-10-01 00:00:00'
+ -- AND 
+ t3.`operation` IN ('OUTER_PAYSYSTEM')
+ AND o3.`status` IN (1,3,5,6) 
+ AND t3.`operation` != 'RETURN'
+AND o3.`instalment` = 1
+
+AND od3.`packet_id` IN (353,354,355,356)
+ GROUP BY od3.`packet_id`
+
+) PS ON PS.`packet_id` = od.`packet_id`
+
+-- LEFT JOIN (
+-- SELECT    o3.id, od3.`packet_id`,  
+-- od3.price,  od3.quantity, o3.price_in_price_list,  t3.sum, 
+-- SUM(((od3.price * od3.quantity/o3.price_in_price_list) * t3.sum )) AS s
+-- FROM `orders` o3
+-- LEFT JOIN `orders_detail` od3 ON od3.`orders_id` = o3.`id`
+-- LEFT JOIN `billing` b3 ON b3.`order_id` = o3.id
+-- LEFT JOIN `transaction` t3 ON t3.billing_id = b3.id
+-- LEFT JOIN `accounts` a3 ON a3.id = t3.account_id
+--  WHERE 
+--  t3.`date` BETWEEN '2016-05-01 00:00:00' AND '2016-10-01 00:00:00'
+--  AND t3.`operation` IN ('OUTER_PAYSYSTEM')
+--  AND o3.`status` IN (5) 
+--  AND t3.`operation` != 'RETURN'
+-- AND o3.`instalment` = 1
+-- 
+-- AND od3.`packet_id` IN (298, 299)
+--  GROUP BY od3.`packet_id`
+-- 
+-- ) PSO ON PSO.`packet_id` = od.`packet_id`
+
+-- Отмененые на Акционный 
+LEFT JOIN (
+SELECT t2.`account_type`, o2.`status`, o2.id AS o_id, t2.`id`, od2.`packet_id`,  
+od2.price,  od2.quantity, o2.price_in_price_list, t2.date, t2.`operation`, t2.sum, 
+ SUM(t2.sum)  AS s
+
+-- SUM
+FROM `orders` o2
+LEFT JOIN `orders_detail` od2 ON od2.`orders_id` = o2.`id`
+LEFT JOIN `billing` b2 ON b2.`order_id` = o2.id
+LEFT JOIN `transaction` t2 ON t2.billing_id = b2.id
+LEFT JOIN `accounts` a2 ON a2.id = t2.account_id
+WHERE 
+ -- o2.`date` BETWEEN '2016-06-01 00:00:00' AND '2016-07-01 00:00:00' AND
+ -- t2.`date` BETWEEN '2016-05-01 00:00:00' AND '2016-10-01 00:00:00'
+-- AND t2.`operation` = 'OUT'
+-- AND 
+o2.`status` IN (5) 
+-- AND  a2.type != ('D')
+-- AND a2.type IN ('B')
+ AND t2.`operation` = 'RETURN'
+AND od2.`packet_id` IN (353,354,355,356)
+ GROUP BY od2.`packet_id`) C ON C.`packet_id` = od.`packet_id`
+
+
+
+WHERE  
+o.`status` IN (1,3,5,6) 
+-- AND
+-- t.`date` BETWEEN '2016-05-01 00:00:00' AND '2016-10-01 00:00:00'
+AND od.`packet_id` IN  (353,354,355,356)
+GROUP BY od.`packet_id`
+"

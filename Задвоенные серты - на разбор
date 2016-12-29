@@ -1,0 +1,11 @@
+SELECT o.id, c.new_sample, c.`number`, b.`status`, o.`status`, 
+ COUNT(*),
+(b.amount_2 - b.payed_from_accounts) AS S, b.*
+FROM `orders` o
+LEFT JOIN billing b ON o.id = b.order_id
+LEFT JOIN `certificates` c ON c.`order_id` = o.`id`
+WHERE o.`date`  BETWEEN '2016-01-01 00:00:00' AND '2017-01-01 00:00:00'
+#AND o.`instalment` = 0
+#AND o.`id` = 90640
+ GROUP BY o.id
+HAVING COUNT(*) > 1

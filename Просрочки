@@ -1,0 +1,5 @@
+SELECT u.`username`, u.`firstname`, u.`lastname`, u.`phone`, i.`order_id`, i.`price` , i.*
+FROM `instalment_schedule` i
+LEFT JOIN `orders` o ON i.`order_id` = o.`id`
+LEFT JOIN `user` u ON u.`id` = o.`id_user`
+WHERE i.`paid` = '0' AND o.`status` = '1' AND i.`payment_date` BETWEEN '2016-12-17 00:00:00' AND '2017-01-17 00:00:00'
